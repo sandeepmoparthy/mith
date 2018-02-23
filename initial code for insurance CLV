@@ -1,0 +1,631 @@
+rm(list = ls(all=TRUE))
+require(dplyr)
+require(stats)
+###There were NAs in most data sets and I could not perform any operations on existing variables.
+
+#reading and processing ownr.txt
+main_data<-read.delim("train.csv", header =T,sep=",")
+main_data <- main_data[-which(rowMeans(is.na(main_data)) > 0.3), ]
+main_data$Number.of.Open.Complaints[is.na(main_data$Number.of.Open.Complaints)] <- 0
+unique(Kmain_data$Number.of.Open.Complaints)
+
+require(DMwR)
+Kmain_data<- knnImputation(main_data,k=99)
+names(main_data)
+str(Kmain_data)
+
+sum(is.na(Kmain_data))
+summary(Kmain_data)
+
+###################
+Target <- subset(Kmain_data,select=c(Customer.Lifetime.Value))
+summary(Target)
+str(Target)
+boxplot(Target)
+
+################################ NUMERIC ####################################################
+###### income
+
+INCOME<-subset(Kmain_data,select= c(  Income))
+summary(INCOME)
+str(INCOME)
+#INCOME[INCOME$Income == "?"] <- "NULL"
+#as.character(INCOME)
+INCOME<-as.numeric(levels(INCOME$Income))[INCOME$Income]
+INCOME[is.na(INCOME)] <- 0
+sum(is.na(INCOME))
+
+#ti<- data.frame(INCOME == Kmain_data$Income)
+
+#Income<-data.frame(Kmain_data$CustomerID, INCOME)
+
+
+
+########### Location
+?ldply()
+Location<-Kmain_data$Location.Geo
+
+Location<- data.frame(Location)
+#Location[Location == "NA,NA"] <- "NA"
+#Location[Location == "NA"] <- 0
+#Location[is.na(Location)] <- 0
+library(dplyr)
+
+summary(Location)
+
+
+
+
+write.csv(Location, file = "Location.csv")
+
+
+l<-read.delim("Location.csv", header =T,sep=",")
+l<- l[,2]
+library(stringr)
+l2<-data.frame(str_split_fixed(l, ",", 2))
+names(l2)
+
+
+colnames(l2)[which(names(l2) == "X1")] <- "Lon"
+colnames(l2)[which(names(l2) == "X2")] <- "Lat"
+
+summary(l2)
+
+sum(is.na(l2$Lat))
+
+#empty_as_na <- function(x){
+ # if("factor" %in% class(x)) x <- as.character(x) ## since ifelse wont work with factors
+  #ifelse(as.character(x)!="", x, NA)
+}
+
+## transform all columns
+#l2 %>% mutate_each(funs(empty_as_na)) 
+
+l2$Lon <- as.character(l2$Lon)
+   #l2$Lon[l2$Lon==""] <- NULL
+l2$Lon <- as.numeric(l2$Lon)
+
+
+l2$Lat <- as.character(l2$Lat)
+   #l2$Lat[l2$Lat==""] <- NULL
+l2$Lat <- as.numeric(l2$Lat)
+
+Location_Geo <- knnImputation(l2,k=99)
+
+
+library(tidyr)
+uLocation_Geo<-unite(Location_Geo, Location_Geo, c(Lon,Lat) , sep = ",", remove = TRUE)
+write.csv(uLocation_Geo, file = "uLocation_Geo")
+library(geosphere)
+dist=distm(x,y, fun= distGeo)
+
+################Location code
+summary(Kmain_data$Location.Code)
+
+################ Monthly premium 
+
+Monthlypremium<- subset(Kmain_data, select=c(Monthly.Premium.Auto))
+
+
+colnames(Monthlypremium)[which(names(Monthlypremium) == "Monthly.Premium.Auto")] <- "Monthlypremium"
+
+summary(Monthlypremium)
+
+############## Months since policy inception= Tenure in months
+Tenure =  subset(Kmain_data, select=c(Months.Since.Policy.Inception))
+colnames(Tenure)[which(names(Tenure) == "Months.Since.Policy.Inception")] <- "Tenure"
+
+
+summary(Tenure)
+
+############# No of policies 
+No_of_policies<- subset(Kmain_data, select=c(Number.of.Policies))
+summary(No_of_policies)
+
+############ Total Claim Amount
+Claim_amount<- subset(Kmain_data, select=c(Total.Claim.Amount))
+summary(Claim_amount)
+
+
+########## Total Policy price
+TotalPolicy_Price<- Monthlypremium*No_of_policies
+names(TotalPolicy_Price)
+
+
+summary(TotalPolicy_Price)
+
+names(TotalPolicy_Price)
+colnames(TotalPolicy_Price)[which(names(TotalPolicy_Price) == "Monthly.Premium.Auto")] <- "TotalPolicy_Price"
+
+######## Margin
+Margin<- TotalPolicy_Price - Claim_amount
+summary(Margin)
+names(Margin)
+colnames(Margin)[which(names(Margin) == "TotalPolicy_Price")] <- "Margin"
+
+
+####### 
+
+##### Months.Since.Last.Claim for churn analysis
+
+Months_since_lastclaim<-  subset(Kmain_data, select=c(Months.Since.Last.Claim))
+summary(Months_since_lastclaim)
+ggplot(Kmain_data, aes(Months.Since.Last.Claim,Location.Code ,color = Customer.Lifetime.Value)) + geom_point()
+plot(Kmain_data$Location.Code,Kmain_data$Customer.Lifetime.Value)
+Kmain_data$Location.Code
+
+
+
+
+library(ggplot2)
+library(ggmap)
+library(plotGoogleMaps)
+library(proj4)
+library(rgdal)
+
+#####
+No_of_complaints<- subset(Kmain_data, select= c(Number.of.Open.Complaints))
+summary(No_of_complaints)
+###################### notice the no of open complaints and number of policies
+
+histogram(Kmain_data$Number.of.Policies,Kmain_data$Number.of.Open.Complaints)
+
+boxplot(Kmain_data$Number.of.Policies)
+boxplot(Kmain_data$Number.of.Open.Complaints)
+####################
+
+library(ggplot2)
+ggplot(Kmain_data, aes(Number.of.Policies, Number.of.Open.Complaints, color = Customer.Lifetime.Value)) + geom_point()
+###
+
+unique(Kmain_data$Number.of.Open.Complaints)
+
+##################
+
+CustomerID<- subset(Kmain_data, select=c(CustomerID))
+
+
+
+################### NUMERIC MASTER DATA#######################################################################
+numeric_master<- data.frame(CustomerID,INCOME,uLocation_Geo,Monthlypremium,No_of_policies,Claim_amount,TotalPolicy_Price,
+                            Months_since_lastclaim,No_of_complaints,Tenure,Margin)
+names(numeric_master)
+summary(numeric_master)
+
+###################################################################################
+
+#######
+numeric_for_model<- subset(numeric_master, select= -c(CustomerID,Location_Geo))
+library(vegan)
+#scaled_numeric_for_model  = decostand(numeric_for_model,method = "range")
+numeric <- scale(numeric_for_model,center = T,scale = T)
+numeric<- data.frame(numeric)
+#snm<- decostand(numeric_for_model,method = "range")
+?decostand
+
+
+
+
+###### Linear model 
+
+LinReg<- lm(Target$Customer.Lifetime.Value~., data= numeric)
+summary(LinReg)
+plot(LinReg$fitted.values)
+par(mfrow=c(2,2))
+plot(LinReg)
+plot(LinReg,which=4)
+par(mfrow=c(1,1))
+hist(LinReg$fitted.values)
+######
+library(MASS)
+
+AIC  = stepAIC(LinReg)
+summary(AIC)
+plot(AIC$fitted.values)
+par(mfrow=c(2,2))
+plot(AIC)
+plot(AIC,which=4)
+par(mfrow=c(1,1))
+hist(AIC$fitted.values)
+
+
+
+regr.eval(Target$Customer.Lifetime.Value,LinReg$fitted.values)
+
+regr.eval(Target$Customer.Lifetime.Value,AIC$fitted.values)
+######################################categorical data########################################################
+catvar<- subset (Kmain_data, select=c(Coverage,Education,EmploymentStatus,Gender,Location.Code,Policy.Type,
+                             Policy,Renew.Offer.Type,Sales.Channel,Vehicle.Class))
+names(Kmain_data)
+
+##### Visualization
+plot(Kmain_data$Coverage,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Education,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$EmploymentStatus,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Gender,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Location.Code,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Policy.Type,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Policy,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Renew.Offer.Type,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Sales.Channel,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$Vehicle.Class,Kmain_data$Customer.Lifetime.Value)
+plot(Kmain_data$,Kmain_data$Customer.Lifetime.Value)
+
+cat_final<- subset(Kmain_data, select=c(Coverage,EmploymentStatus,Policy.Type,Policy,Renew.Offer.Type,Vehicle.Class))
+
+g<- glm(Target$Customer.Lifetime.Value~.,data =cat_final )
+summary(g)
+plot(Target$Customer.Lifetime.Value~., data=cat_final, col="red4")
+
+LAIC= stepAIC(g, direction = "both")
+summary(LAIC)
+    ########################dummies
+catDummies <- model.matrix(Target$Customer.Lifetime.Value ~ cat_final$Coverage 
+                           +cat_final$EmploymentStatus+ cat_final$Policy + cat_final$Renew.Offer.Type
+                            + cat_final$Vehicle.Class)[,-1]
+
+
+
+catDummies_df<- as.data.frame(catDummies)
+names(catDummies_df)
+
+
+logreg<- glm(Target$Customer.Lifetime.Value~.,data =catDummies_df )
+summary(logreg)
+lgAIC<- stepAIC(logreg,, direction = "both")
+summary(lgAIC)
+plot(logreg$fitted.values)
+par(mfrow=c(2,2))
+plot(logreg)
+plot(logreg,which=4)
+par(mfrow=c(1,1))
+hist(logreg$fitted.values)
+
+predicted = predict(logreg, newdata=catDummies_df, type="response")
+plot(Target$Customer.Lifetime.Value~., data=catDummies_df, col="red4")
+
+
+
+##################################################Master data frame#################################
+masterdf<-data.frame(numeric, catDummies, Target) 
+
+#Saving to csv
+write.csv(masterdf, file = "masterdf.csv")
+
+# Saving on object in RData format
+save(masterdf, file = "masterdf.RData")
+###################################################################################################
+
+
+names(masterdf)
+####################################### For model development and analysis#################################################
+Data<- subset(masterdf, select=-c(Number.of.Policies,Months.Since.Last.Claim ))
+target_variable = subset(Data,select="Customer.Lifetime.Value")
+Data = subset(Data,select = -c(Customer.Lifetime.Value))
+
+
+######## understanding income
+boxplot(Data$INCOME)
+summary(Data$INCOME)
+table(numeric_Variables$MinChildAge)
+numeric_Variables$MinChildAge[numeric_Variables$MinChildAge>23] = 0
+table(numeric_Variables$MinChildAge)
+
+####### understanding monthly premium
+boxplot(Data$Monthlypremium)
+summary((Data$Monthlypremium))
+
+
+####### understanding margin
+boxplot(Data$Margin)
+summary((Data$Margin))
+
+
+
+######## understanding Total claim amount
+boxplot(Data$Total.Claim.Amount)
+summary((Data$Total.Claim.Amount))
+
+
+
+#########understanding Total policy price
+boxplot(Data$TotalPolicy_Price)
+
+summary(Data$TotalPolicy_Price)
+
+
+######## understanding number of open complaints
+boxplot(Data$Number.of.Open.Complaints)
+summary(Data$Number.of.Open.Complaints)
+
+###### understanding tenure
+boxplot(Data$Tenure)
+summary(Data$Tenure)
+
+
+#################################################################################################################################
+names(Data)
+
+
+
+
+rows=nrow(Data)
+set.seed(123)
+trainRows=sample(rows,(70*nrow(Data))/100)
+
+
+train = Data[trainRows,] 
+
+test = Data[-trainRows,]
+
+
+colnames(train)
+
+
+
+
+target_train = target_variable[trainRows,]
+target_test = target_variable[-trainRows,]
+
+
+
+####
+LinReg<- lm(target_train~., data= train)
+summary(LinReg)
+plot(LinReg$fitted.values)
+par(mfrow=c(2,2))
+plot(LinReg)
+plot(LinReg,which=4)
+par(mfrow=c(1,1))
+hist(LinReg$fitted.values)
+######
+library(MASS)
+
+AIC  = stepAIC(LinReg)
+summary(AIC)
+plot(AIC$fitted.values)
+par(mfrow=c(2,2))
+plot(AIC)
+plot(AIC,which=4)
+par(mfrow=c(1,1))
+hist(AIC$fitted.values)
+regr.eval(target_train,LinReg$fitted.values)
+
+regr.eval(target_train,AIC$fitted.values)
+
+pred = predict(LinReg,test)
+
+regr.eval(target_test,pred)
+
+
+#############knn
+library(class)
+kpred=knn(train,test, target_train,k=50)
+summary(kpred)
+table(kpred)
+a1=table(kpred,target_test)
+a1= sum(diag(a1))/nrow(test)  
+
+
+
+keep = condense(train,target)  
+
+
+
+library(FNN)
+pred=FNN::knn(train[keep,],test,target_train[keep],k=6)  
+a <- table(pred,test_data1$pers.loan)  
+a  
+accu = sum(diag(a))/nrow(test_data1)  
+accu   ###0.916###
+indices = knnx.index(bankdata_trainwithoutclass1[keep,], bankdata_testwithoutclass1, k=6)   
+print(indices[12, ])
+
+
+
+
+
+###########################################################################################################################
+library(randomForest)
+
+model_rf = randomForest(target_train~.,data = train, ntree = 500,mtry = 9)
+print(model_rf)
+varImpPlot(model_rf)
+
+pred_rf<- predict(model_rf,train)
+preds_rf <- predict(model_rf, test)
+preds_rf_prob <- predict(model_rf, test, type = "resp")
+
+
+
+
+
+
+
+
+
+###############################################
+
+
+
+
+
+############################################## 
+
+######XG-BOOST
+
+
+library(xgboost)
+# Constructing the Dense matrix on the train and test data
+dtrain = xgb.DMatrix(data = as.matrix(train),
+                     label = target_train)
+
+dtest = xgb.DMatrix(data = as.matrix(test),
+                    label = target_test)
+
+listing <- list(train= dtrain,test= dtest)
+
+
+# fit the model
+model = xgboost(data = dtrain, max.depth = 4,eta = 0.3, nthread = 2, nround = 50,listwatch=listing,eval.metric="error" ,verbose = 1 ,booster= "gblinear")
+
+
+
+# objective = "binary:logistic": we will train a binary classification model ;
+# max.deph = 4: the trees won't be deep, because our case is very simple ;
+# nthread = 2: the number of cpu threads we are going to use;
+# nround : max number of boosting iterations.
+# eta : It controls the learning rate
+# verbose = 1: print evaluation metric
+
+# Both xgboost (simple) and xgb.train (advanced) functions train models.
+
+# Because of the way boosting works, there is a time when having too many rounds lead to an overfitting. One way to measure progress in learning of a model is to provide to XGBoost a second dataset already classified. 
+#Therefore it can learn on the first dataset and test its model on the second one.
+#Some metrics are measured after each round during the learning.
+
+#Use watchlist parameter. It is a list of xgb.DMatrix, 
+#each of them tagged with a name.
+
+watchlist = list(train=dtrain, test=dtest)
+
+model = xgb.train(data=dtrain, max.depth=4,
+                  eta=0.3, nthread = 2, nround=50, 
+                  watchlist=watchlist,
+                  eval.metric = "error", 
+                  verbose = 1)
+# eval.metric allows us to monitor two new metrics for each round, logloss and error.
+
+importance <- xgb.importance(feature_names = names(train), model = model)
+print(importance)
+xgb.plot.importance(importance_matrix = importance)
+xgb.save(model, "xgboost.model")
+##################################
+
+library(DMwR)
+train_matrix <- as.matrix(train)
+test_matrix <- as.matrix(test)
+pred7 = predict(model,train_matrix)
+regr.eval(pred7,target_train)
+
+pred8 = predict(model,test_matrix)
+regr.eval(pred8,target_test)
+
+
+
+
+
+#################################
+
+rm(model)
+
+
+model <- xgb.load("xgboost.model")
+
+# prediction on test data
+pred <- predict(model, as.matrix(test))
+
+# size of the prediction vector
+print(length(pred))
+
+# limit display of predictions to the first 10
+print(head(pred))
+
+# The numbers we get are probabilities that a datum will be classified as 1. 
+# Therefore, we will set the rule that if this probability for a 
+# specific datum is > 0.5 then the observation is classified as 1 (or 0 otherwise).
+
+#####
+label = getinfo(dtest, "label")
+pred <- predict(model, dtest)
+err <- as.numeric(sum(as.integer(pred > 0.5) != label))/length(label)
+print(paste("test-error=", err))
+
+regr.eval(pred,target_train)
+
+importance_matrix <- xgb.importance(model = model)
+print(importance_matrix)
+xgb.plot.importance(importance_matrix = importance_matrix)
+
+
+#viewing tree
+xgb.dump(model, with_stats = T)
+library(DiagrammeR)
+xgb.plot.tree(model = model)
+
+################ Decision tree
+library(rpart)
+library(rpart.plot)
+
+cart_model <- rpart(target_train ~ . , train)
+summary(cart_model)
+model_dt <- rpart(target_train~.,data=train ,method = "anova",control = rpart.control(mtry=62,minisplit= 3,cp=0.07))
+# * The predictions here too are probabilities for each of the two classes in the target variable
+
+
+par(mfrow=c(1,1))
+rpart.plot(model_dt)
+model_dt
+pred3 = predict(model_dt,train)
+regr.eval(pred3,target_train)
+
+pred4 = predict(model_dt,test)
+regr.eval(pred4,target_test)
+plot(printcp(model_dt), type='b')
+
+
+
+#########   svm
+install.packages("e1071")
+library(e1071)
+
+
+
+svm_model <- svm(target_train~., data = train)
+summary(svm_model)
+
+pred5 = predict(svm_model,train)
+regr.eval(pred5,target_train)
+
+pred6 = predict(svm_model,test)
+regr.eval(pred6,target_test)
+
+
+######################################### success##########################################################
+
+
+
+
+
+# Building a Stacked Ensemble
+
+# * Before building a stacked ensemble model, we have to coallate all the predictions on the train and validation datasets into a dataframe
+
+# Getting all the predictions on the train data into a dataframe
+
+train_preds_df <- data.frame(rf = pred_rf, svm = pred5,
+                             tree = pred3,xg= pred7 ,
+                             CLV = target_train)
+
+
+
+# convert the target variable into a factor
+train_preds_df$CLV <- as.factor(as.character(train_preds_df$CLV))
+
+
+# * Use the sapply() function to convert all the variables other than the target variable into a numeric type
+numeric_st_df <- sapply(train_preds_df[, !(names(train_preds_df) %in% "CLV")], 
+                        function(x) as.numeric(as.character(x)))
+
+cor(numeric_st_df)
+
+pca_stack <- prcomp(numeric, scale = F)
+summary(pca_stack)
+
+# Transform the data into the principal components using the predict() fucntion and keep only 3 of the original components
+predicted_stack <- as.data.frame(predict(pca_stack, numeric))[1:2]
+
+# Now, add those columns to the target variable (CLV) and convert it to a data frame
+stacked_df <- data.frame(predicted_stack, CLV = train_preds_df$CLV)
+
+
